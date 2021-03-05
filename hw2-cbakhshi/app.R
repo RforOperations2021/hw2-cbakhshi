@@ -10,6 +10,13 @@ library(tools)
 #importing required data---------------------------------------
 airport.data = read.csv("Airport_Monthly_Operational_Report.csv")
 
+#reordering factor levels in the Year Column ------------------------------
+airport.data$Year = factor(airport.data$Year, levels=c( '2010', '2011', '2012',
+                                                        '2013', '2014', '2015',
+                                                        '2016', '2017', '2018',
+                                                        '2019', '2020'))
+
+
 # To avoid plotly issues ----------------------------------------------
 pdf(NULL)
 
@@ -36,7 +43,16 @@ body <- dashboardBody(
                 #Value Boxes ------------------------------------------
                 fluidRow(valueBoxOutput("passengers"),
                          valueBoxOutput("operations"),
-                         valueBoxOutput("cargo"))
+                         valueBoxOutput("cargo")),
+                # Plot ----------------------------------------------
+                fluidRow(
+                    tabBox(title = "Plots",
+                           width = 12,
+                           tabPanel(strong("Total Passenger Trends"), plotlyOutput("dashboard.lp1")),
+                           tabPanel(strong("Total Operation Trends"), plotlyOutput("dashboard.lp2")),
+                           tabPanel(strong("Total Cargo Trends"), plotlyOutput("dashboard.lp3"))
+                    )
+                )
                 
         )
     )
@@ -73,7 +89,33 @@ server <- function(input, output) {
                  value = avg, icon = icon("truck-loading"), color = "blue")
     })
     
-}
-
+    
+    # passenger trends line plot on the dashboard page
+    output$dashboard.lp1 <- renderPlotly({
+        ggplot(airport.data, aes_string(x = "Month", y = "Total.Passengers", color = "Year")) +
+            geom_line(aes(group=Year)) +
+            labs(x = "Months", y ="Total Passengers", 
+                 title ="This graph shows the trend in total passengers arrival + departure at the airport") +
+            theme_bw() + scale_x_discrete(limits = month.name)
+    })
+    
+    # Operations trends line plot on the dashboard page
+    output$dashboard.lp2 <- renderPlotly({
+        ggplot(airport.data, aes_string(x = "Month", y = "Total.Operations", color = "Year")) +
+            geom_line(aes(group=Year)) +
+            labs(x = "Months", y ="Total Operations", 
+                 title ="This graph shows the trend in total Operations inlcuding Air Carrier, Military, Taxi, and General Aviation)") +
+            theme_bw() + scale_x_discrete(limits = month.name)
+    })
+    
+    # Cargo trends line plot on the dashboard page
+    output$dashboard.lp3 <- renderPlotly({
+        ggplot(airport.data, aes_string(x = "Month", y = "Cargo.Totals..Cargo...Mail...Belly.Freight.", color = "Year")) +
+            geom_line(aes(group=Year)) +
+            labs(x = "Months", y ="Total Cargo", 
+                 title ="This graph shows the trend in cargo shipments inlcuding Cargo, Mail, and Belly Freight))") +
+            theme_bw() + scale_x_discrete(limits = month.name)
+    })
+}  
 # Run the application 
 shinyApp(ui = ui, server = server)
