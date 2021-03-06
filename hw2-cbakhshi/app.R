@@ -1,4 +1,3 @@
-#importing required libraries---------------------------------------
 library(shiny)
 library(shinydashboard)
 library(reshape2)
@@ -232,14 +231,14 @@ server <- function(input, output) {
     )
     
     # Create a subset of data filtering for selected years for cargo tab------
-    airport.year <- reactive({
+    airport.year2 <- reactive({
         req(input$cargo.year) # ensure availability of value before proceeding
         filter(airport.data, Year %in% input$cargo.year)
     })
     
     # cargo trends line plot on the dashboard page
     output$cargo.lp1 <- renderPlotly({
-        ggplot(airport.year(), aes_string(x = "Month")) +
+        ggplot(airport.year2(), aes_string(x = "Month")) +
             geom_line(aes_string(y = "Cargo.Totals..Cargo...Mail...Belly.Freight.",
                                  group= "Year"), color = "blue")  +
             geom_line(aes_string(y = input$cargo.y, group = "Year")) + 
@@ -250,7 +249,7 @@ server <- function(input, output) {
     # Print data table if checked -------------------------------------
     output$cargo.table <- DT::renderDataTable(
         if(input$show_data2){
-            DT::datatable(data = airport.year()[, cargo.vector], 
+            DT::datatable(data = airport.year2()[, cargo.vector], 
                           options = list(pageLength = 5), 
                           rownames = FALSE)
         }
