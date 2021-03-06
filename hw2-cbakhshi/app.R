@@ -13,10 +13,15 @@ library(tidyverse)
 #importing required data---------------------------------------
 airport.data = read.csv("Airport_Monthly_Operational_Report.csv")
 
+#creating a vector with operations columns
 operations.vector = c("Month", "Year", "Air.Carrier.Operations",
                       "Commuter.and.Air.Taxi.Operations", 
                       "Military.Operations", "General.Aviation..Total.Operations",
                       "Total.Operations")
+
+#creating a vector with cargo columns
+cargo.vector = c("Month", "Year", "Mail.Totals", "Cargo.Totals",
+                 "Belly.Freight.Totals", "Cargo.Totals..Cargo...Mail...Belly.Freight.")
 
 #reordering factor levels in the Year Column ------------------------------
 airport.data$Year = factor(airport.data$Year, levels=c( '2010', '2011', '2012',
@@ -40,8 +45,11 @@ sidebar <- dashboardSidebar(width = 300,
                                 # Menu Items -----------------------------------
                                 menuItem(text ="Dashboard", icon = icon("bar-chart")
                                          , tabName = "dashboard"),
+                                
                                 menuItem(text ="Operations", icon = icon("plane-departure")
-                                         , tabName = "operations")
+                                         , tabName = "operations"),
+                                menuItem(text ="Cargo", icon = icon("truck-loading")
+                                         , tabName = "cargo")
                             )
 )
 
@@ -99,6 +107,42 @@ body <- dashboardBody(
                     
                     # Box with data table 
                     box(DT::dataTableOutput(outputId = "operations.table"), width = 12)
+                )
+        ),
+        
+        # Cargo page ----------------------------------------------
+        tabItem("cargo",
+                fluidRow(
+                    box(plotlyOutput("cargo.lp1"), width = 8),
+                    box(
+                        title= "Choose Inputs",
+                        br(),
+                        # Select year for plot----------------------------------
+                        selectInput(inputId = "cargo.year", 
+                                    label = "Choose Year:",
+                                    choices = unique(airport.data$Year), 
+                                    selected = "2019"),
+                        
+                        # Select y axis for plot----------------------------------
+                        selectInput(inputId = "cargo.y", 
+                                    label = "Choose value for y-axis:",
+                                    choices = c("Mail Totals" = "Mail.Totals",
+                                                "Cargo Totals" = "Cargo.Totals",
+                                                "Belly Freight Totals" = "Belly.Freight.Totals"), 
+                                    selected = "Mail Totals"),
+                        
+                        "Note: The total Cargo including Cargo, Mail, and Belly Freights are shown with a Blue line",
+                        
+                        br(),
+                        
+                        # Show data table ---------------------------------------------
+                        checkboxInput(inputId = "show_data2",
+                                      label = "Show data table",
+                                      value = TRUE)
+                        , width = 4),
+                    
+                    # Box with data table 
+                    box(DT::dataTableOutput(outputId = "cargo.table"), width = 12)
                 )
         )
     )
@@ -169,7 +213,7 @@ server <- function(input, output) {
         filter(airport.data, Year %in% input$operations.year)
     })
     
-    # Cargo trends line plot on the dashboard page
+    # Operations trends line plot on the dashboard page
     output$operations.lp1 <- renderPlotly({
         ggplot(airport.year(), aes_string(x = "Month")) +
             geom_line(aes_string(y = "Total.Operations", group= "Year"), color = "blue")  +
@@ -182,6 +226,31 @@ server <- function(input, output) {
     output$operations.table <- DT::renderDataTable(
         if(input$show_data1){
             DT::datatable(data = airport.year()[, operations.vector], 
+                          options = list(pageLength = 5), 
+                          rownames = FALSE)
+        }
+    )
+    
+    # Create a subset of data filtering for selected years for cargo tab------
+    airport.year <- reactive({
+        req(input$cargo.year) # ensure availability of value before proceeding
+        filter(airport.data, Year %in% input$cargo.year)
+    })
+    
+    # cargo trends line plot on the dashboard page
+    output$cargo.lp1 <- renderPlotly({
+        ggplot(airport.year(), aes_string(x = "Month")) +
+            geom_line(aes_string(y = "Cargo.Totals..Cargo...Mail...Belly.Freight.",
+                                 group= "Year"), color = "blue")  +
+            geom_line(aes_string(y = input$cargo.y, group = "Year")) + 
+            labs(x = "Months", y = toTitleCase(str_replace_all(input$y, ".", " ")), 
+                 title ="Total Cargo (Mail + Cargo + Belly Freights) Vs Mail, just Cargo, and Belly Freights") +
+            theme_bw() + scale_x_discrete(limits = month.name)
+    })
+    # Print data table if checked -------------------------------------
+    output$cargo.table <- DT::renderDataTable(
+        if(input$show_data2){
+            DT::datatable(data = airport.year()[, cargo.vector], 
                           options = list(pageLength = 5), 
                           rownames = FALSE)
         }
